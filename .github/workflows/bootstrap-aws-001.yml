@@ -1,0 +1,159 @@
+# ==============================================================================
+# GitHub Actions - Bootstrap Pipeline (bootstrap-aws-001) - OpenTofu
+# ==============================================================================
+# Deploys the AWS bootstrap infrastructure:
+#   - S3 bucket for OpenTofu state
+#   - DynamoDB table for state locking
+#   - S3 bucket versioning and encryption
+#   - IAM policies for state access
+#
+# Prerequisites:
+#   - AWS credentials configured as GitHub Secrets (see Required Secrets below)
+#   - AWS account and permissions to create S3, DynamoDB, IAM resources
+#
+# Required Secrets:
+#   AWS_ACCOUNT_ID      - AWS account ID
+#   AWS_ACCESS_KEY_ID   - AWS IAM user access key (or use OIDC)
+#   AWS_SECRET_ACCESS_KEY - AWS IAM user secret key (or use OIDC)
+#   AWS_REGION          - Target AWS region (e.g. eu-west-2)
+#
+# Required Variables (GitHub Environment or Repository Variables):
+#   ENVIRONMENT                 - Environment name (e.g. part-001)
+#   TFSTATE_BUCKET_NAME         - S3 bucket name for state (e.g. dpn-tfstate-part-001)
+#   TFSTATE_DYNAMODB_TABLE      - DynamoDB table name (e.g. dpn-tfstate-lock)
+#   KMS_KEY_ALIAS               - KMS key alias for encryption (e.g. alias/dpn-tfstate)
+# ==============================================================================
+
+name: Bootstrap Infrastructure (bootstrap-aws-001)
+
+on:
+  workflow_dispatch:
+    inputs:
+      what_if:
+        description: 'Run what-if analysis only (no deployment)'
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write   # Required for OIDC authentication
+  contents: read
+
+jobs:
+  check-bootstrap:
+    name: Check if bootstrap exists
+    runs-on: ubuntu-latest
+    outputs:
+      bootstrap_exists: ${{ steps.check.outputs.bootstrap_exists }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Check if S3 bucket and DynamoDB table exist
+        id: check
+        run: |
+          BUCKET_EXISTS=false
+          TABLE_EXISTS=false
+
+          if aws s3 ls "s3://${{ vars.TFSTATE_BUCKET_NAME }}" 2>/dev/null; then
+            BUCKET_EXISTS=true
+            echo "✅ S3 bucket exists: ${{ vars.TFSTATE_BUCKET_NAME }}"
+          else
+            echo "❌ S3 bucket does not exist: ${{ vars.TFSTATE_BUCKET_NAME }}"
+          fi
+
+          if [ "$BUCKET_EXISTS" = "true" ]; then
+            if aws dynamodb describe-table \
+              --table-name "${{ vars.TFSTATE_DYNAMODB_TABLE }}" \
+              --region "${{ secrets.AWS_REGION }}" \
+              --query "Table.TableName" 2>/dev/null; then
+              TABLE_EXISTS=true
+              echo "✅ DynamoDB table exists: ${{ vars.TFSTATE_DYNAMODB_TABLE }}"
+            else
+              echo "❌ DynamoDB table does not exist: ${{ vars.TFSTATE_DYNAMODB_TABLE }}"
+            fi
+          fi
+
+          if [ "$BUCKET_EXISTS" = "true" ] && [ "$TABLE_EXISTS" = "true" ]; then
+            echo "bootstrap_exists=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Bootstrap already deployed - skipping deployment"
+          else
+            echo "bootstrap_exists=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Bootstrap needs to be deployed"
+          fi
+
+  deploy-bootstrap:
+    name: Deploy Bootstrap Infrastructure
+    runs-on: ubuntu-latest
+    needs: check-bootstrap
+    if: needs.check-bootstrap.outputs.bootstrap_exists == 'false'
+    environment: bootstrap-aws-001
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install OpenTofu ${{ env.OPENTOFU_VERSION }}
+        run: |
+          wget -q -O tofu.zip https://github.com/opentofu/opentofu/releases/download/v${{ env.OPENTOFU_VERSION }}/tofu_${{ env.OPENTOFU_VERSION }}_linux_amd64.zip
+          unzip -o tofu.zip tofu
+          sudo mv tofu /usr/local/bin/
+          tofu version
+
+      - name: What-If Analysis
+        if: ${{ inputs.what_if == true }}
+        working-directory: infrastructure/Tofu/bootstrap
+        run: |
+          echo "============================================="
+          echo "Bootstrap Infrastructure - What-If Analysis"
+          echo "============================================="
+          echo "Environment:            ${{ vars.ENVIRONMENT }}"
+          echo "Region:                 ${{ secrets.AWS_REGION }}"
+          echo "S3 Bucket:              ${{ vars.TFSTATE_BUCKET_NAME }}"
+          echo "DynamoDB Table:         ${{ vars.TFSTATE_DYNAMODB_TABLE }}"
+          echo "============================================="
+          echo ""
+          echo "Initializing OpenTofu bootstrap"
+          tofu init -backend=false
+          
+          echo ""
+          echo "Generating plan..."
+          tofu plan -var-file=environments/part.tfvars
+
+      - name: Deploy Bootstrap Infrastructure
+        if: ${{ inputs.what_if == false }}
+        working-directory: infrastructure/Tofu/bootstrap
+        run: |
+          echo "Initializing OpenTofu bootstrap"
+          tofu init -backend=false
+          
+          echo ""
+          echo "Applying bootstrap configuration..."
+          tofu apply \
+            -var-file=environments/part.tfvars \
+            -auto-approve
+
+      - name: Bootstrap deployment summary
+        if: ${{ inputs.what_if == false }}
+        working-directory: infrastructure/Tofu/bootstrap
+        run: |
+          echo "============================================="
+          echo "Bootstrap Infrastructure Deployed Successfully"
+          echo "============================================="
+          echo ""
+          echo "OpenTofu Outputs:"
+          tofu output
+          echo ""
+          echo "Next Steps:"
+          echo "  1. Copy backend configuration from outputs above"
+          echo "  2. Update infrastructure/Tofu/backend.tf with the backend config"
+          echo "  3. Run 'part-aws-001' workflow for main infrastructure deployment"

@@ -1,0 +1,30 @@
+# OpenTofu / Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# OpenTofu lock file is intentionally included (remove if not desired)
+# !.terraform.lock.hcl
+
+# Provider binaries
+*.exe
+
+# Secrets and local vars
+*.auto.tfvars
+secrets.tfvars
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/

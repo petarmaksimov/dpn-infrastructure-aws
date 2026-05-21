@@ -1,0 +1,173 @@
+# ==============================================================================
+# Azure Pipeline - Bootstrap Infrastructure (aws-bootstrap-001) - OpenTofu
+# ==============================================================================
+# Deploys the AWS bootstrap infrastructure:
+#   - S3 bucket for OpenTofu state
+#   - DynamoDB table for state locking
+#   - IAM policies for state access
+#
+# Bootstrap must complete before running aws-pipeline-part-001
+#
+# Required variable group (dpn-aws-vars-001):
+#   AGENT_POOL              - Azure DevOps agent pool name
+#   SERVICE_CONNECTION_NAME - AWS service connection name
+#   AWS_ACCOUNT_ID          - Target AWS account ID
+#   AWS_REGION              - Target AWS region (e.g. eu-west-2)
+#   TFSTATE_BUCKET_NAME     - S3 bucket name (e.g. dpn-tfstate-part-001)
+#   TFSTATE_DYNAMODB_TABLE  - DynamoDB table name (e.g. dpn-tfstate-lock)
+# ==============================================================================
+
+trigger: none
+
+pr: none
+
+pool:
+  name: $(AGENT_POOL)
+
+# Prevent concurrent pipeline runs to avoid deployment conflicts
+lockBehavior: sequential
+
+variables:
+  - group: dpn-aws-vars-001
+  # Note: The following variables should be defined in variable group dpn-aws-vars-001:
+  # - AGENT_POOL: Azure DevOps agent pool name
+  # - SERVICE_CONNECTION_NAME: AWS service connection name
+  # - AWS_ACCOUNT_ID: Target AWS account ID
+  # - AWS_REGION: Target region (e.g. eu-west-2)
+  # - TFSTATE_BUCKET_NAME: S3 bucket name for state
+  # - TFSTATE_DYNAMODB_TABLE: DynamoDB table name
+  - name: OPENTOFU_VERSION
+    value: '1.9.0'
+
+stages:
+  - stage: CheckBootstrap
+    displayName: 'Check Bootstrap Infrastructure'
+    jobs:
+      - job: CheckExistence
+        displayName: 'Check if bootstrap resources exist'
+        steps:
+          - checkout: self
+            displayName: 'Checkout repository'
+
+          - task: AWSShellScript@1
+            displayName: 'Check if S3 bucket and DynamoDB table exist'
+            name: CheckStorage
+            inputs:
+              awsCredentials: $(SERVICE_CONNECTION_NAME)
+              regionName: $(AWS_REGION)
+              scriptType: 'inline'
+              inlineScript: |
+                $ErrorActionPreference = 'Continue'
+
+                $bucketExists = $false
+                $tableExists = $false
+
+                # Check if S3 bucket exists
+                try {
+                  $bucketCheck = aws s3 ls "s3://$(TFSTATE_BUCKET_NAME)" --region $(AWS_REGION) 2>$null
+                  if ($LASTEXITCODE -eq 0) {
+                    $bucketExists = $true
+                  }
+                } catch {
+                  $bucketExists = $false
+                }
+
+                # Check if DynamoDB table exists
+                if ($bucketExists) {
+                  try {
+                    $tableCheck = aws dynamodb describe-table `
+                      --table-name "$(TFSTATE_DYNAMODB_TABLE)" `
+                      --region $(AWS_REGION) 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                      $tableExists = $true
+                    }
+                  } catch {
+                    $tableExists = $false
+                  }
+                }
+
+                # Bootstrap is complete only if BOTH S3 bucket AND DynamoDB table exist
+                if ($bucketExists -and $tableExists) {
+                  Write-Host "✓ S3 bucket $(TFSTATE_BUCKET_NAME) exists"
+                  Write-Host "✓ DynamoDB table $(TFSTATE_DYNAMODB_TABLE) exists"
+                  Write-Host "✓ Bootstrap infrastructure is already deployed"
+                  Write-Host "##vso[task.setvariable variable=bootstrapExists;isOutput=true]true"
+                } elseif ($bucketExists -and -not $tableExists) {
+                  Write-Host "✓ S3 bucket $(TFSTATE_BUCKET_NAME) exists"
+                  Write-Host "✗ DynamoDB table $(TFSTATE_DYNAMODB_TABLE) does NOT exist"
+                  Write-Host "→ Bootstrap infrastructure needs to be redeployed to add DynamoDB table"
+                  Write-Host "##vso[task.setvariable variable=bootstrapExists;isOutput=true]false"
+                } else {
+                  Write-Host "✗ S3 bucket $(TFSTATE_BUCKET_NAME) does not exist"
+                  Write-Host "→ Bootstrap infrastructure needs to be deployed"
+                  Write-Host "##vso[task.setvariable variable=bootstrapExists;isOutput=true]false"
+                }
+
+                # Ensure script exits successfully
+                exit 0
+
+  - stage: DeployBootstrap
+    displayName: 'Deploy Bootstrap Infrastructure'
+    dependsOn: CheckBootstrap
+    condition: and(succeeded(), eq(dependencies.CheckBootstrap.outputs['CheckExistence.CheckStorage.bootstrapExists'], 'false'))
+    jobs:
+      - job: Deploy
+        displayName: 'Deploy bootstrap resources'
+        steps:
+          - checkout: self
+            displayName: 'Checkout repository'
+
+          - task: PowerShell@2
+            displayName: 'Install OpenTofu $(OPENTOFU_VERSION)'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "Installing OpenTofu $(OPENTOFU_VERSION)"
+                $url = "https://github.com/opentofu/opentofu/releases/download/v$(OPENTOFU_VERSION)/tofu_$(OPENTOFU_VERSION)_windows_amd64.zip"
+                Invoke-WebRequest -Uri $url -OutFile tofu.zip
+                Expand-Archive -Path tofu.zip -DestinationPath . -Force
+                Write-Host "OpenTofu installed"
+                .\tofu.exe version
+
+          - task: PowerShell@2
+            displayName: 'Deploy Bootstrap Infrastructure'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "==========================================================="
+                Write-Host "Deploying Bootstrap Infrastructure via OpenTofu"
+                Write-Host "==========================================================="
+                Write-Host ""
+
+                Push-Location "infrastructure/Tofu/bootstrap"
+
+                Write-Host "Initializing OpenTofu bootstrap (local state)"
+                .\tofu.exe init -backend=false
+
+                Write-Host ""
+                Write-Host "Applying bootstrap configuration..."
+                .\tofu.exe apply `
+                  -var-file="environments/part.tfvars" `
+                  -auto-approve
+
+                Write-Host ""
+                Write-Host "Bootstrap deployment completed"
+                Write-Host ""
+                Write-Host "OpenTofu Outputs:"
+                .\tofu.exe output
+
+                Pop-Location
+
+          - task: PowerShell@2
+            displayName: 'Bootstrap deployment summary'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "==========================================================="
+                Write-Host "Bootstrap Infrastructure Deployed Successfully"
+                Write-Host "==========================================================="
+                Write-Host ""
+                Write-Host "Next Steps:"
+                Write-Host "  1. Copy backend configuration from outputs above"
+                Write-Host "  2. Update infrastructure/Tofu/backend.tf with backend config"
+                Write-Host "  3. Run 'aws-pipeline-part-001' for main infrastructure deployment"
