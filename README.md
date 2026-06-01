@@ -193,22 +193,6 @@ aws sts get-caller-identity
 - **No Corporate Firewall Restrictions**: On AWS API endpoints, ECR endpoints
 - **Domain Registration**: For Route53 DNS (separate process)
 
-### Cost Estimation (Monthly)
-
-| Component | Quantity | Unit Cost | Monthly |
-|-----------|----------|-----------|---------|
-| EKS Cluster | 1 | $0.10/hour | $73 |
-| EC2 (t3.medium, 2 nodes) | 2 | $0.0416/hour | $61 |
-| RDS (db.m6i.large, Multi-AZ) | 1 | $0.442/hour | $649 |
-| NAT Gateway (3 AZs) | 3 | $0.045/hour | $99 |
-| ALB | 1 | $16.20/month | $16 |
-| VPC Endpoints (9) | 9 | $0.01/hour | $66 |
-| CloudWatch Logs | ~20GB | $0.50/GB | $10 |
-| S3 (logging) | 50GB | $0.023/GB | $1 |
-| **Total** | | | **~$975/month** |
-
----
-
 ## Repository Structure
 
 ```
