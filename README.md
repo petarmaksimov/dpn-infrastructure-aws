@@ -1100,3 +1100,36 @@ This deployment guide provides everything needed to successfully deploy and main
 
 **Last Updated**: May 2026
 **Maintained By**: Platform Engineering Team
+
+
+## DEV deployment profile
+
+A DEV profile has been added for first deployment testing:
+
+```text
+infrastructure/Tofu/environments/dev.tfvars
+infrastructure/Tofu/bootstrap/environments/dev.tfvars
+infrastructure/Tofu/backends/dev.hcl
+```
+
+First deploy bootstrap:
+
+```bash
+cd infrastructure/Tofu/bootstrap
+tofu init
+tofu apply -var-file=environments/dev.tfvars
+```
+
+Then run the main DEV plan:
+
+```bash
+cd infrastructure/Tofu
+tofu init -backend-config=backends/dev.hcl
+tofu plan -var-file=environments/dev.tfvars
+```
+
+See:
+
+```text
+docs/dev-deployment.md
+```
