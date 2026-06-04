@@ -58,6 +58,7 @@ variable "allowed_egress_fqdns" {
     ".ecr.amazonaws.com",
     ".ecr.aws",
     ".eks.amazonaws.com",
+    ".compute.amazonaws.com",
     "packages.us-east-1.amazonaws.com"
   ]
 }
@@ -256,6 +257,12 @@ variable "db_admin_username" {
   description = "Master username for RDS"
   type        = string
   default     = "dpnadmin"
+}
+
+variable "db_admin_secret_name" {
+  description = "AWS Secrets Manager secret name for the generated RDS PostgreSQL administrator credentials"
+  type        = string
+  default     = ""
 }
 
 variable "backup_retention_days" {

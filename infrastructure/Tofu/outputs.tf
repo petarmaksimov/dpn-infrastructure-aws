@@ -37,3 +37,14 @@ output "irsa_role_arns" {
   description = "IRSA role ARNs by role key"
   value       = module.workload_identity.role_arns
 }
+
+
+output "db_admin_secret_arn" {
+  description = "Secrets Manager secret ARN for generated RDS PostgreSQL administrator credentials"
+  value       = module.database.db_admin_secret_arn
+}
+
+output "db_admin_secret_name" {
+  description = "Secrets Manager secret name for generated RDS PostgreSQL administrator credentials"
+  value       = module.database.db_admin_secret_name
+}

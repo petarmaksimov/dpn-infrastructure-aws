@@ -6,6 +6,13 @@ output "rds_port" {
   value = aws_db_instance.this.port
 }
 
-output "master_user_secret_arn" {
-  value = try(aws_db_instance.this.master_user_secret[0].secret_arn, null)
+output "db_admin_secret_arn" {
+  value       = aws_secretsmanager_secret.db_admin.arn
+  description = "ARN of the Secrets Manager secret containing generated PostgreSQL admin credentials"
+}
+
+
+output "db_admin_secret_name" {
+  value       = aws_secretsmanager_secret.db_admin.name
+  description = "Name of the Secrets Manager secret containing generated PostgreSQL admin credentials"
 }

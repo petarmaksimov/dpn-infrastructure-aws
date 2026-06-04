@@ -152,6 +152,7 @@ module "database" {
   db_allocated_storage       = var.db_allocated_storage
   db_max_allocated_storage   = var.db_max_allocated_storage
   db_admin_username          = var.db_admin_username
+  db_admin_secret_name        = var.db_admin_secret_name
   backup_retention_days      = var.backup_retention_days
   tags                       = var.tags
 }

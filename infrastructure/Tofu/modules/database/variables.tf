@@ -42,6 +42,11 @@ variable "db_admin_username" {
   type = string
 }
 
+variable "db_admin_secret_name" {
+  type    = string
+  default = ""
+}
+
 variable "backup_retention_days" {
   type = number
 }

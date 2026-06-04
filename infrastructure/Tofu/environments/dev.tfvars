@@ -17,3 +17,113 @@ subnet_cidrs = {
   app    = ["10.85.32.128/26", "10.85.32.192/26"]
   data   = ["10.85.32.224/28", "10.85.32.240/28"]
 }
+
+domain_name      = "dpn-dev.example.com"
+ingress_hostname = "dpn-dev"
+route53_zone_id  = "REPLACE_WITH_DEV_ROUTE53_ZONE_ID"
+
+endpoint_private_access = true
+endpoint_public_access  = false
+
+system_node_group_instance_types = ["t3.medium"]
+system_node_group_desired_size   = 1
+system_node_group_min_size       = 1
+system_node_group_max_size       = 2
+
+workload_node_group_instance_types = ["t3.large"]
+workload_node_group_desired_size   = 1
+workload_node_group_min_size       = 1
+workload_node_group_max_size       = 3
+
+db_name                  = "dpn"
+db_engine_version        = "16.3"
+db_instance_class        = "db.t4g.medium"
+db_allocated_storage     = 30
+db_max_allocated_storage = 100
+db_admin_username        = "dpnadmin"
+backup_retention_days    = 7
+
+enable_waf     = true
+waf_rate_limit = 2000
+blocked_country_codes = [
+  "KP",
+  "IR",
+  "SY"
+]
+waf_allowed_http_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+waf_blocked_user_agent_regexes = [
+  "(?i).*sqlmap.*",
+  "(?i).*nikto.*",
+  "(?i).*nmap.*",
+  "(?i).*masscan.*",
+  "(?i).*acunetix.*",
+  "(?i).*dirbuster.*",
+  "(?i).*zaproxy.*"
+]
+
+enable_guardduty                     = true
+enable_security_hub                  = true
+enable_cloudtrail                    = true
+enable_aws_config                    = true
+enable_session_manager_preferences   = true
+enable_vpc_endpoints                 = true
+enable_restrictive_endpoint_policies = true
+
+allowed_egress_fqdns = [
+  ".amazonaws.com",
+  ".ecr.amazonaws.com",
+  ".ecr.aws",
+  ".eks.amazonaws.com",
+  ".compute.amazonaws.com",
+  "packages.us-east-1.amazonaws.com"
+]
+
+tags = {
+  project      = "dpn"
+  environment  = "dev"
+  managed_by   = "opentofu"
+  data_class   = "participant"
+  architecture = "dsi-reference-dev"
+}
+
+# Example IRSA map. Replace with least-privilege policies per workload.
+irsa_service_accounts = {
+  external-secrets = {
+    namespace       = "external-secrets"
+    service_account = "external-secrets-sa"
+    policy_json = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Effect   = "Allow"
+          Action   = ["secretsmanager:GetSecretValue"]
+          Resource = "arn:aws:secretsmanager:*:*:secret:dpn/dev/*"
+        }
+      ]
+    })
+  }
+}
+
+# Baseline AWS Config Rules (for gradual compliance enablement)
+# These are example AWS managed rules in audit (non-enforcing) mode. Expand as needed.
+aws_config_baseline = {
+  "restricted-ssh" = {
+    description = "Checks whether security groups allow unrestricted SSH access."
+    rule_identifier = "INCOMING_SSH_DISABLED"
+    input_parameters = {}
+    compliance_mode = "Audit"
+  }
+  "s3-bucket-public-read-prohibited" = {
+    description = "Checks that S3 buckets do not allow public read access."
+    rule_identifier = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
+    input_parameters = {}
+    compliance_mode = "Audit"
+  }
+  "rds-storage-encrypted" = {
+    description = "Checks whether storage encryption is enabled for your RDS DB instances."
+    rule_identifier = "RDS_STORAGE_ENCRYPTED"
+    input_parameters = {}
+    compliance_mode = "Audit"
+  }
+}
+db_admin_secret_name     = "dpn/dev/postgres/admin"
