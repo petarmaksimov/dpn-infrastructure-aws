@@ -1,18 +1,32 @@
 # DEV Deployment Guide
 
-This codebase now includes a DEV deployment profile.
-
-## Files added
+Confirmed DEV parameters:
 
 ```text
-infrastructure/Tofu/environments/dev.tfvars
-infrastructure/Tofu/bootstrap/environments/dev.tfvars
-infrastructure/Tofu/backends/dev.hcl
-.github/workflows/bootstrap-dev.yml
-.github/workflows/infrastructure-dev.yml
+AWS Account: 627657103820
+AWS Account Name: dpn-dev-01
+Region: eu-west-2
+State bucket: dpn-tfstate-dev-001
+State lock table: dpn-tfstate-lock-dev
+State key: dev/terraform.tfstate
+Authentication: temporary AWS access key and secret
 ```
 
-## Local bootstrap
+Confirmed DEV network:
+
+```text
+VPC CIDR: 10.85.32.0/24
+AZs: eu-west-2a, eu-west-2b
+
+TGW:        10.85.32.0/28,   10.85.32.16/28
+Firewall:   10.85.32.32/28,  10.85.32.48/28
+Public:     10.85.32.64/28,  10.85.32.80/28
+Management: 10.85.32.96/28,  10.85.32.112/28
+Application:10.85.32.128/26, 10.85.32.192/26
+Data:       10.85.32.224/28, 10.85.32.240/28
+```
+
+Bootstrap:
 
 ```bash
 cd infrastructure/Tofu/bootstrap
@@ -21,14 +35,7 @@ tofu plan -var-file=environments/dev.tfvars
 tofu apply -var-file=environments/dev.tfvars
 ```
 
-This creates:
-
-```text
-S3 bucket:      dpn-tfstate-dev-001
-DynamoDB table: dpn-tfstate-lock-dev
-```
-
-## Local infrastructure plan
+Main DEV plan:
 
 ```bash
 cd infrastructure/Tofu
@@ -37,38 +44,13 @@ tofu validate
 tofu plan -var-file=environments/dev.tfvars
 ```
 
-## DEV values to replace before apply
+Do not run main apply until the plan is reviewed.
 
-Update:
-
-```text
-infrastructure/Tofu/environments/dev.tfvars
-```
-
-Required client-specific values:
-
-```hcl
-route53_zone_id = "REPLACE_WITH_DEV_ROUTE53_ZONE_ID"
-domain_name     = "dpn-dev.example.com"
-```
-
-Also confirm:
-
-```hcl
-vpc_cidr
-azs
-subnet_cidrs
-db_instance_class
-node group sizes
-allowed_egress_fqdns
-```
-
-## Cost-reduced DEV defaults
-
-The DEV profile reduces cost compared with the PART/PROD profile:
+GitHub secrets:
 
 ```text
-system node group:   1 desired / 1 min / 2 max
-workload node group: 1 desired / 1 min / 3 max
-RDS:                 db.t4g.medium, 30GB, 7-day backup
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_REGION = eu-west-2
+AWS_ACCOUNT_ID = 627657103820
 ```

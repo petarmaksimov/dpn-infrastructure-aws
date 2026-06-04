@@ -1,0 +1,359 @@
+# ==============================================================================
+# Azure Pipeline - Infrastructure (aws-pipeline-part-001) - OpenTofu
+# ==============================================================================
+# Deploys main AWS infrastructure using OpenTofu with part.tfvars
+# Bootstrap must be run first (run aws-pipeline-bootstrap-001)
+#
+# Stages:
+#   1. Validate Bootstrap Prerequisites
+#   2. Code Quality Checks (fmt, validate, tflint, tfsec)
+#   3. OpenTofu Plan
+#   4. OpenTofu Apply / Destroy (requires manual approval)
+#
+# Required variable group (dpn-aws-vars-001):
+#   AGENT_POOL              - Azure DevOps agent pool name
+#   SERVICE_CONNECTION_NAME - AWS service connection name
+#   AWS_ACCOUNT_ID          - Target AWS account ID
+#   AWS_REGION              - Target region (e.g. eu-west-2)
+#   TFSTATE_BUCKET_NAME     - S3 bucket name for state
+#   TFSTATE_DYNAMODB_TABLE  - DynamoDB table name
+#   TFSTATE_KEY             - State file key (e.g. part/terraform.tfstate)
+# ==============================================================================
+
+trigger: none
+
+pr:
+  branches:
+    include:
+      - main
+      - development
+  paths:
+    include:
+      - infrastructure/Tofu/**
+      - .azure-pipelines/**
+
+parameters:
+  - name: action
+    displayName: 'Action'
+    type: string
+    default: 'plan'
+    values:
+      - plan
+      - apply
+      - destroy
+  - name: forceUnlock
+    displayName: 'Force Unlock State (use only if previous run was interrupted)'
+    type: boolean
+    default: false
+  - name: lockId
+    displayName: 'Lock ID (only needed if Force Unlock is enabled)'
+    type: string
+    default: 'not-applicable'
+
+variables:
+  - group: dpn-aws-vars-001
+  # Note: The following variables should be defined in variable group dpn-aws-vars-001:
+  # - AGENT_POOL, SERVICE_CONNECTION_NAME, AWS_ACCOUNT_ID, AWS_REGION
+  # - TFSTATE_BUCKET_NAME, TFSTATE_DYNAMODB_TABLE, TFSTATE_KEY
+  - name: OPENTOFU_VERSION
+    value: '1.9.0'
+  - name: Environment.Name
+    value: 'part-001'
+  - name: TF_VARS_FILE
+    value: 'environments/part.tfvars'
+  - name: TF_WORKING_DIR
+    value: 'infrastructure/Tofu'
+
+pool:
+  name: $(AGENT_POOL)
+
+# Prevent concurrent pipeline runs to avoid OpenTofu state lock conflicts
+lockBehavior: sequential
+
+stages:
+  # ============================================================
+  # Stage 1: Validate Bootstrap Prerequisites
+  # ============================================================
+  - stage: ValidateBootstrap
+    displayName: 'Validate Bootstrap Prerequisites'
+    jobs:
+      - job: CheckBootstrapResources
+        displayName: 'Verify bootstrap resources exist'
+        steps:
+          - task: AWSShellScript@1
+            displayName: 'Validate bootstrap infrastructure'
+            inputs:
+              awsCredentials: $(SERVICE_CONNECTION_NAME)
+              regionName: $(AWS_REGION)
+              scriptType: 'inline'
+              inlineScript: |
+                Write-Host "================================================"
+                Write-Host "Validating Bootstrap Prerequisites"
+                Write-Host "================================================"
+
+                $ERRORS = 0
+
+                # Check S3 bucket
+                $bucketCheck = aws s3 ls "s3://$(TFSTATE_BUCKET_NAME)" --region $(AWS_REGION) 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                  Write-Host "✓ S3 bucket exists: $(TFSTATE_BUCKET_NAME)"
+                } else {
+                  Write-Host "✗ S3 bucket missing: $(TFSTATE_BUCKET_NAME)"
+                  $ERRORS++
+                }
+
+                # Check DynamoDB table
+                aws dynamodb describe-table `
+                  --table-name "$(TFSTATE_DYNAMODB_TABLE)" `
+                  --region $(AWS_REGION) >$null 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                  Write-Host "✓ DynamoDB table exists: $(TFSTATE_DYNAMODB_TABLE)"
+                } else {
+                  Write-Host "✗ DynamoDB table missing: $(TFSTATE_DYNAMODB_TABLE)"
+                  $ERRORS++
+                }
+
+                if ($ERRORS -gt 0) {
+                  Write-Host "✗ Validation failed with $ERRORS error(s). Run aws-pipeline-bootstrap-001 first."
+                  exit 1
+                }
+                Write-Host "✓ All bootstrap prerequisites validated successfully"
+
+  # ============================================================
+  # Stage 2: Code Quality Checks
+  # ============================================================
+  - stage: QualityChecks
+    displayName: 'Code Quality & Security Checks'
+    dependsOn: ValidateBootstrap
+    condition: succeeded()
+    jobs:
+      - job: CodeQuality
+        displayName: 'OpenTofu Quality Checks'
+        steps:
+          - checkout: self
+            displayName: 'Checkout repository'
+
+          - task: AWSShellScript@1
+            displayName: 'Install OpenTofu $(OPENTOFU_VERSION)'
+            inputs:
+              awsCredentials: $(SERVICE_CONNECTION_NAME)
+              regionName: $(AWS_REGION)
+              scriptType: 'inline'
+              inlineScript: |
+                Write-Host "Installing OpenTofu $(OPENTOFU_VERSION)"
+                $url = "https://github.com/opentofu/opentofu/releases/download/v$(OPENTOFU_VERSION)/tofu_$(OPENTOFU_VERSION)_windows_amd64.zip"
+                Invoke-WebRequest -Uri $url -OutFile tofu.zip
+                Expand-Archive -Path tofu.zip -DestinationPath . -Force
+                Write-Host "OpenTofu installed"
+                .\tofu.exe version
+
+          - task: PowerShell@2
+            displayName: 'OpenTofu Format Check'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "================================================"
+                Write-Host "Checking OpenTofu Code Formatting"
+                Write-Host "================================================"
+                Push-Location "$(TF_WORKING_DIR)"
+                .\tofu.exe fmt -check -recursive
+                if ($LASTEXITCODE -ne 0) {
+                  Write-Host "❌ Code formatting issues detected"
+                  Write-Host "Run: tofu fmt -recursive"
+                  exit 1
+                }
+                Write-Host "✓ Code formatting check passed"
+                Pop-Location
+
+          - task: PowerShell@2
+            displayName: 'OpenTofu Validate'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "================================================"
+                Write-Host "Validating OpenTofu Configuration"
+                Write-Host "================================================"
+                Push-Location "$(TF_WORKING_DIR)"
+                .\tofu.exe init -backend=false
+                .\tofu.exe validate
+                Write-Host "✓ Configuration validation passed"
+                Pop-Location
+
+  # ============================================================
+  # Stage 3: OpenTofu Plan
+  # ============================================================
+  - stage: Plan
+    displayName: 'OpenTofu Plan'
+    dependsOn: QualityChecks
+    condition: succeeded()
+    jobs:
+      - job: GeneratePlan
+        displayName: 'Generate OpenTofu Plan'
+        steps:
+          - checkout: self
+            displayName: 'Checkout repository'
+
+          - task: PowerShell@2
+            displayName: 'Install OpenTofu'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $url = "https://github.com/opentofu/opentofu/releases/download/v$(OPENTOFU_VERSION)/tofu_$(OPENTOFU_VERSION)_windows_amd64.zip"
+                Invoke-WebRequest -Uri $url -OutFile tofu.zip
+                Expand-Archive -Path tofu.zip -DestinationPath . -Force
+
+          - task: PowerShell@2
+            displayName: 'Configure OpenTofu Backend'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $backendConfig = @"
+                terraform {
+                  backend "s3" {
+                    bucket         = "$(TFSTATE_BUCKET_NAME)"
+                    key            = "$(TFSTATE_KEY)"
+                    region         = "$(AWS_REGION)"
+                    dynamodb_table = "$(TFSTATE_DYNAMODB_TABLE)"
+                    encrypt        = true
+                  }
+                }
+                "@
+                Set-Content -Path "$(TF_WORKING_DIR)/backend-override.tf" -Value $backendConfig
+
+          - task: PowerShell@2
+            displayName: 'Initialize OpenTofu'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Push-Location "$(TF_WORKING_DIR)"
+                .\tofu.exe init -upgrade
+                Pop-Location
+
+          - task: PowerShell@2
+            displayName: 'Generate Plan'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Push-Location "$(TF_WORKING_DIR)"
+                Write-Host "Generating OpenTofu plan"
+                .\tofu.exe plan `
+                  -var-file="$(TF_VARS_FILE)" `
+                  -out=tfplan.binary
+                .\tofu.exe show -json tfplan.binary > tfplan.json
+                Pop-Location
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Plan Artifacts'
+            inputs:
+              pathToPublish: '$(TF_WORKING_DIR)'
+              artifactName: 'tofu-plan'
+
+  # ============================================================
+  # Stage 4: OpenTofu Apply / Destroy
+  # ============================================================
+  - stage: Deploy
+    displayName: 'OpenTofu Deploy'
+    dependsOn: Plan
+    condition: and(succeeded(), or(eq('${{ parameters.action }}', 'apply'), eq('${{ parameters.action }}', 'destroy')))
+    jobs:
+      - deployment: DeployInfrastructure
+        displayName: 'Deploy Infrastructure'
+        environment: 'part-aws-001-deploy'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  displayName: 'Checkout repository'
+
+                - task: DownloadBuildArtifacts@1
+                  displayName: 'Download Plan Artifacts'
+                  inputs:
+                    artifactName: 'tofu-plan'
+                    downloadPath: '$(System.ArtifactsDirectory)'
+
+                - task: PowerShell@2
+                  displayName: 'Install OpenTofu'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      $url = "https://github.com/opentofu/opentofu/releases/download/v$(OPENTOFU_VERSION)/tofu_$(OPENTOFU_VERSION)_windows_amd64.zip"
+                      Invoke-WebRequest -Uri $url -OutFile tofu.zip
+                      Expand-Archive -Path tofu.zip -DestinationPath . -Force
+
+                - task: PowerShell@2
+                  displayName: 'Configure Backend'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      $backendConfig = @"
+                      terraform {
+                        backend "s3" {
+                          bucket         = "$(TFSTATE_BUCKET_NAME)"
+                          key            = "$(TFSTATE_KEY)"
+                          region         = "$(AWS_REGION)"
+                          dynamodb_table = "$(TFSTATE_DYNAMODB_TABLE)"
+                          encrypt        = true
+                        }
+                      }
+                      "@
+                      Set-Content -Path "$(TF_WORKING_DIR)/backend-override.tf" -Value $backendConfig
+
+                - task: PowerShell@2
+                  displayName: 'Initialize OpenTofu'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      Push-Location "$(TF_WORKING_DIR)"
+                      .\tofu.exe init -upgrade
+                      Pop-Location
+
+                - task: PowerShell@2
+                  displayName: 'Force Unlock State'
+                  condition: eq('${{ parameters.forceUnlock }}', true)
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      Push-Location "$(TF_WORKING_DIR)"
+                      Write-Host "⚠️ Force unlocking state"
+                      .\tofu.exe force-unlock "${{ parameters.lockId }}" -force
+                      Pop-Location
+
+                - task: PowerShell@2
+                  displayName: 'OpenTofu Apply'
+                  condition: eq('${{ parameters.action }}', 'apply')
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      Push-Location "$(TF_WORKING_DIR)"
+                      Write-Host "Applying OpenTofu configuration"
+                      .\tofu.exe apply `
+                        -var-file="$(TF_VARS_FILE)" `
+                        -auto-approve
+                      Pop-Location
+
+                - task: PowerShell@2
+                  displayName: 'OpenTofu Destroy'
+                  condition: eq('${{ parameters.action }}', 'destroy')
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      Push-Location "$(TF_WORKING_DIR)"
+                      Write-Host "⚠️ Destroying infrastructure"
+                      .\tofu.exe destroy `
+                        -var-file="$(TF_VARS_FILE)" `
+                        -auto-approve
+                      Pop-Location
+
+                - task: PowerShell@2
+                  displayName: 'Deployment Summary'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      Write-Host "============================================="
+                      Write-Host "Deployment Completed"
+                      Write-Host "============================================="
+                      Write-Host "Action: ${{ parameters.action }}"
+                      Write-Host "Environment: $(Environment.Name)"
+                      Write-Host "Region: $(AWS_REGION)"
+                      Write-Host "============================================="
