@@ -12,8 +12,8 @@ enable_mfa_delete            = false
 kms_key_deletion_window_days = 7
 
 tags = {
-  Owner       = "Platform-Engineering"
-  CostCenter  = "Infrastructure"
-  Compliance  = "DEV"
-  DataClass   = "Internal-Dev"
+  Owner      = "Platform-Engineering"
+  CostCenter = "Infrastructure"
+  Compliance = "DEV"
+  DataClass  = "Internal-Dev"
 }

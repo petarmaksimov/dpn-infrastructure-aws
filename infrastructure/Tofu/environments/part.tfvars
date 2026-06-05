@@ -106,21 +106,21 @@ irsa_service_accounts = {
 # These are example AWS managed rules in audit (non-enforcing) mode. Expand as needed.
 aws_config_baseline = {
   "restricted-ssh" = {
-    description = "Checks whether security groups allow unrestricted SSH access."
-    rule_identifier = "INCOMING_SSH_DISABLED"
+    description      = "Checks whether security groups allow unrestricted SSH access."
+    rule_identifier  = "INCOMING_SSH_DISABLED"
     input_parameters = {}
-    compliance_mode = "Audit"
+    compliance_mode  = "Audit"
   }
   "s3-bucket-public-read-prohibited" = {
-    description = "Checks that S3 buckets do not allow public read access."
-    rule_identifier = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
+    description      = "Checks that S3 buckets do not allow public read access."
+    rule_identifier  = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
     input_parameters = {}
-    compliance_mode = "Audit"
+    compliance_mode  = "Audit"
   }
   "rds-storage-encrypted" = {
-    description = "Checks whether storage encryption is enabled for your RDS DB instances."
-    rule_identifier = "RDS_STORAGE_ENCRYPTED"
+    description      = "Checks whether storage encryption is enabled for your RDS DB instances."
+    rule_identifier  = "RDS_STORAGE_ENCRYPTED"
     input_parameters = {}
-    compliance_mode = "Audit"
+    compliance_mode  = "Audit"
   }
 }
