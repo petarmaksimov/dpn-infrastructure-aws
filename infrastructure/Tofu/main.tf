@@ -61,6 +61,16 @@ module "container_registry" {
   tags                 = var.tags
 }
 
+module "storage" {
+  source = "./modules/storage"
+
+  bucket_name                                = var.data_bucket_name
+  force_destroy                              = var.data_bucket_force_destroy
+  kms_key_arn                                = module.security.kms_key_arn
+  noncurrent_version_expiration_days         = var.data_bucket_noncurrent_version_expiration_days
+  tags                                       = var.tags
+}
+
 module "eks" {
   source = "./modules/eks"
 
@@ -73,10 +83,13 @@ module "eks" {
   cluster_role_arn             = module.security.eks_cluster_role_arn
   node_role_arn                = module.security.eks_node_role_arn
   kms_key_arn                  = module.security.kms_key_arn
-  endpoint_private_access      = var.endpoint_private_access
-  endpoint_public_access       = var.endpoint_public_access
-  endpoint_public_access_cidrs = var.endpoint_public_access_cidrs
-  cluster_log_types            = var.cluster_log_types
+  endpoint_private_access                         = var.endpoint_private_access
+  endpoint_public_access                          = var.endpoint_public_access
+  endpoint_public_access_cidrs                    = var.endpoint_public_access_cidrs
+  cluster_log_types                               = var.cluster_log_types
+  authentication_mode                             = var.eks_authentication_mode
+  bootstrap_cluster_creator_admin_permissions     = var.eks_bootstrap_cluster_creator_admin_permissions
+  access_entries                                  = var.eks_access_entries
 
   system_node_group = {
     name           = var.system_node_group_name

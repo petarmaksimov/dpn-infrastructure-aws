@@ -102,6 +102,28 @@ variable "cluster_log_types" {
   default     = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 }
 
+variable "eks_authentication_mode" {
+  description = "EKS authentication mode. API_AND_CONFIG_MAP allows EKS Access Entries while preserving aws-auth compatibility."
+  type        = string
+  default     = "API_AND_CONFIG_MAP"
+}
+
+variable "eks_bootstrap_cluster_creator_admin_permissions" {
+  description = "Grant temporary cluster admin permissions to the principal creating the EKS cluster."
+  type        = bool
+  default     = true
+}
+
+variable "eks_access_entries" {
+  description = "EKS access entries for human IAM/SSO principals."
+  type = map(object({
+    principal_arn     = string
+    policy_arn        = string
+    access_scope_type = string
+  }))
+  default = {}
+}
+
 variable "system_node_group_name" {
   description = "System node group name"
   type        = string
@@ -269,6 +291,27 @@ variable "backup_retention_days" {
   description = "RDS backup retention in days"
   type        = number
   default     = 35
+}
+
+# ========================================
+# Storage Variables
+# ========================================
+
+variable "data_bucket_name" {
+  description = "Private encrypted S3 bucket for DPN participant/application data. No workload access is granted by default."
+  type        = string
+}
+
+variable "data_bucket_force_destroy" {
+  description = "Allow force destroy of the data bucket. Keep false for normal environments."
+  type        = bool
+  default     = false
+}
+
+variable "data_bucket_noncurrent_version_expiration_days" {
+  description = "Number of days before noncurrent object versions expire."
+  type        = number
+  default     = 90
 }
 
 # ========================================

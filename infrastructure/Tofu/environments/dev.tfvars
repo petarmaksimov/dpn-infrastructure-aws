@@ -25,6 +25,23 @@ route53_zone_id  = "REPLACE_WITH_DEV_ROUTE53_ZONE_ID"
 endpoint_private_access = true
 endpoint_public_access  = false
 
+eks_authentication_mode                         = "API_AND_CONFIG_MAP"
+eks_bootstrap_cluster_creator_admin_permissions = true
+
+eks_access_entries = {
+  admin = {
+    principal_arn     = "arn:aws:iam::627657103820:role/aws-reserved/sso.amazonaws.com/eu-west-2/AWSReservedSSO_EKSAdmin_a8d6203f7d2ec862"
+    policy_arn        = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+    access_scope_type = "cluster"
+  }
+
+  devops = {
+    principal_arn     = "arn:aws:iam::627657103820:role/aws-reserved/sso.amazonaws.com/eu-west-2/AWSReservedSSO_EKSDevOps_f8e10dc1e40da1f1"
+    policy_arn        = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+    access_scope_type = "cluster"
+  }
+}
+
 system_node_group_instance_types = ["t3.medium"]
 system_node_group_desired_size   = 1
 system_node_group_min_size       = 1
@@ -127,3 +144,7 @@ aws_config_baseline = {
   }
 }
 db_admin_secret_name = "dpn/dev/postgres/admin"
+
+data_bucket_name                                = "dpn-dev-627657103820-eu-west-2-data"
+data_bucket_force_destroy                       = false
+data_bucket_noncurrent_version_expiration_days  = 90

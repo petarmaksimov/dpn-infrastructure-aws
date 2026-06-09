@@ -1133,3 +1133,15 @@ See:
 ```text
 docs/dev-deployment.md
 ```
+
+## DEV EKS access and data bucket
+
+The DEV configuration includes EKS Access Entries for the IAM Identity Center EKSAdmin and EKSDevOps roles.
+
+The DEV configuration also creates a private encrypted DPN data bucket:
+
+```text
+dpn-dev-627657103820-eu-west-2-data
+```
+
+See `docs/dev-deployment.md` for the current DEV deployment parameters.

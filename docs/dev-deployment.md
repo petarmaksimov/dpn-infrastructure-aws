@@ -80,3 +80,43 @@ The secret JSON contains:
 ```
 
 No database password is stored in `dev.tfvars`, GitHub Actions, or the repository.
+
+## EKS Access Entries
+
+The DEV deployment maps IAM Identity Center SSO reserved role ARNs into EKS using EKS Access Entries.
+
+Current DEV mappings:
+
+```text
+admin  -> arn:aws:iam::627657103820:role/aws-reserved/sso.amazonaws.com/eu-west-2/AWSReservedSSO_EKSAdmin_a8d6203f7d2ec862
+devops -> arn:aws:iam::627657103820:role/aws-reserved/sso.amazonaws.com/eu-west-2/AWSReservedSSO_EKSDevOps_f8e10dc1e40da1f1
+```
+
+Both are initially mapped to:
+
+```text
+arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+```
+
+The DevOps mapping is intentionally broad for the first deployment and should be reduced later after the platform is validated.
+
+## Private Data Bucket
+
+The DEV deployment creates a private encrypted S3 bucket for DPN data:
+
+```text
+dpn-dev-627657103820-eu-west-2-data
+```
+
+Security baseline:
+
+```text
+Public access blocked
+Bucket owner enforced
+KMS encryption
+Versioning enabled
+TLS-only access policy
+No workload access granted yet
+```
+
+Workload access should be added later through IRSA once application requirements are known.

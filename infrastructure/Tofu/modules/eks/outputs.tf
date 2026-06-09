@@ -17,3 +17,10 @@ output "oidc_provider_arn" {
 output "oidc_issuer_url" {
   value = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
+
+
+output "access_entry_principal_arns" {
+  value = {
+    for key, entry in aws_eks_access_entry.this : key => entry.principal_arn
+  }
+}

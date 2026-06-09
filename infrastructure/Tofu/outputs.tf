@@ -48,3 +48,20 @@ output "db_admin_secret_name" {
   description = "Secrets Manager secret name for generated RDS PostgreSQL administrator credentials"
   value       = module.database.db_admin_secret_name
 }
+
+
+output "eks_access_entry_principal_arns" {
+  description = "EKS access entry principal ARNs by entry key"
+  value       = module.eks.access_entry_principal_arns
+}
+
+
+output "data_bucket_name" {
+  description = "Private encrypted DPN data bucket name"
+  value       = module.storage.bucket_name
+}
+
+output "data_bucket_arn" {
+  description = "Private encrypted DPN data bucket ARN"
+  value       = module.storage.bucket_arn
+}

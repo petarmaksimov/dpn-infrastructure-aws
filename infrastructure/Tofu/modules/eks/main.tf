@@ -17,6 +17,11 @@ resource "aws_eks_cluster" "this" {
 
   enabled_cluster_log_types = var.cluster_log_types
 
+  access_config {
+    authentication_mode                         = var.authentication_mode
+    bootstrap_cluster_creator_admin_permissions = var.bootstrap_cluster_creator_admin_permissions
+  }
+
   encryption_config {
     provider {
       key_arn = var.kms_key_arn
@@ -89,4 +94,34 @@ resource "aws_iam_openid_connect_provider" "this" {
   url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
 
   tags = var.tags
+}
+
+
+
+resource "aws_eks_access_entry" "this" {
+  for_each = var.access_entries
+
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = each.value.principal_arn
+  type          = "STANDARD"
+
+  depends_on = [
+    aws_eks_cluster.this
+  ]
+}
+
+resource "aws_eks_access_policy_association" "this" {
+  for_each = var.access_entries
+
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = aws_eks_access_entry.this[each.key].principal_arn
+  policy_arn    = each.value.policy_arn
+
+  access_scope {
+    type = each.value.access_scope_type
+  }
+
+  depends_on = [
+    aws_eks_access_entry.this
+  ]
 }
