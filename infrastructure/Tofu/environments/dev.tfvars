@@ -145,6 +145,6 @@ aws_config_baseline = {
 }
 db_admin_secret_name = "dpn/dev/postgres/admin"
 
-data_bucket_name                                = "dpn-dev-627657103820-eu-west-2-data"
-data_bucket_force_destroy                       = false
-data_bucket_noncurrent_version_expiration_days  = 90
+data_bucket_name                               = "dpn-dev-627657103820-eu-west-2-data"
+data_bucket_force_destroy                      = false
+data_bucket_noncurrent_version_expiration_days = 90
