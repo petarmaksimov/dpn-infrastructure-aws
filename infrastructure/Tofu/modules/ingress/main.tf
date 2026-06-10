@@ -365,7 +365,7 @@ resource "aws_wafv2_web_acl_association" "this" {
 }
 
 resource "aws_wafv2_web_acl_logging_configuration" "this" {
-  count = var.enable_waf && var.waf_log_group_arn != null && var.waf_log_group_arn != "" ? 1 : 0
+  count = var.enable_waf && var.enable_waf_logging ? 1 : 0
 
   resource_arn            = aws_wafv2_web_acl.this[0].arn
   log_destination_configs = [var.waf_log_group_arn]

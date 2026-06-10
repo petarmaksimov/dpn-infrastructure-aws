@@ -44,6 +44,8 @@ module "networking" {
   allowed_egress_fqdns                 = var.allowed_egress_fqdns
   enable_vpc_endpoints                 = var.enable_vpc_endpoints
   enable_restrictive_endpoint_policies = var.enable_restrictive_endpoint_policies
+  enable_vpc_flow_logs                 = var.enable_vpc_flow_logs
+  enable_network_firewall_logging      = var.enable_network_firewall_logging
   vpc_flow_log_group_arn               = module.observability.vpc_flow_log_group_arn
   firewall_flow_log_group_arn          = module.observability.firewall_flow_log_group_arn
   firewall_alert_log_group_arn         = module.observability.firewall_alert_log_group_arn
@@ -122,6 +124,7 @@ module "ingress" {
   ingress_hostname               = var.ingress_hostname
   route53_zone_id                = var.route53_zone_id
   enable_waf                     = var.enable_waf
+  enable_waf_logging             = var.enable_waf_logging
   waf_rate_limit                 = var.waf_rate_limit
   blocked_country_codes          = var.blocked_country_codes
   waf_allowed_http_methods       = var.waf_allowed_http_methods

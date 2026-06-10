@@ -212,7 +212,7 @@ resource "aws_vpc" "this" {
 }
 
 resource "aws_iam_role" "vpc_flow_logs" {
-  count = var.vpc_flow_log_group_arn != null && var.vpc_flow_log_group_arn != "" ? 1 : 0
+  count = var.enable_vpc_flow_logs ? 1 : 0
 
   name = "iam-${var.project_name}-vpc-flow-logs-${var.environment}"
 
@@ -233,7 +233,7 @@ resource "aws_iam_role" "vpc_flow_logs" {
 }
 
 resource "aws_iam_role_policy" "vpc_flow_logs" {
-  count = var.vpc_flow_log_group_arn != null && var.vpc_flow_log_group_arn != "" ? 1 : 0
+  count = var.enable_vpc_flow_logs ? 1 : 0
 
   name = "policy-${var.project_name}-vpc-flow-logs-${var.environment}"
   role = aws_iam_role.vpc_flow_logs[0].id
@@ -256,7 +256,7 @@ resource "aws_iam_role_policy" "vpc_flow_logs" {
 }
 
 resource "aws_flow_log" "vpc" {
-  count = var.vpc_flow_log_group_arn != null && var.vpc_flow_log_group_arn != "" ? 1 : 0
+  count = var.enable_vpc_flow_logs ? 1 : 0
 
   log_destination      = var.vpc_flow_log_group_arn
   log_destination_type = "cloud-watch-logs"
@@ -486,7 +486,7 @@ resource "aws_networkfirewall_firewall" "this" {
 }
 
 resource "aws_networkfirewall_logging_configuration" "this" {
-  count = length(local.firewall_logging_configs) > 0 ? 1 : 0
+  count = var.enable_network_firewall_logging ? 1 : 0
 
   firewall_arn = aws_networkfirewall_firewall.this.arn
 
@@ -692,7 +692,7 @@ resource "aws_network_acl" "public" {
 }
 
 resource "aws_security_group" "alb" {
-  name        = "sg-${var.project_name}-allow-alb-${var.environment}"
+  name        = "${var.project_name}-allow-alb-${var.environment}"
   description = "ALB security group"
   vpc_id      = aws_vpc.this.id
 
@@ -700,7 +700,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_security_group" "node" {
-  name        = "sg-${var.project_name}-eks-node-${var.environment}"
+  name        = "${var.project_name}-eks-node-${var.environment}"
   description = "EKS node security group"
   vpc_id      = aws_vpc.this.id
 
@@ -708,7 +708,7 @@ resource "aws_security_group" "node" {
 }
 
 resource "aws_security_group" "data" {
-  name        = "sg-${var.project_name}-data-${var.environment}"
+  name        = "${var.project_name}-data-${var.environment}"
   description = "Data-tier security group"
   vpc_id      = aws_vpc.this.id
 
@@ -716,7 +716,7 @@ resource "aws_security_group" "data" {
 }
 
 resource "aws_security_group" "mgmt" {
-  name        = "sg-${var.project_name}-mgmt-${var.environment}"
+  name        = "${var.project_name}-mgmt-${var.environment}"
   description = "Management security group"
   vpc_id      = aws_vpc.this.id
 
@@ -726,7 +726,7 @@ resource "aws_security_group" "mgmt" {
 resource "aws_security_group" "endpoint" {
   count = var.enable_vpc_endpoints ? 1 : 0
 
-  name        = "sg-${var.project_name}-vpce-${var.environment}"
+  name        = "${var.project_name}-vpce-${var.environment}"
   description = "VPC endpoint interface security group"
   vpc_id      = aws_vpc.this.id
 

@@ -138,3 +138,17 @@ The DEV backend state key is:
 ```text
 dev/terraform.tfstate
 ```
+
+## Main infrastructure planning fixes
+
+The DEV configuration uses explicit booleans for resources whose logging targets are created in the same apply:
+
+```text
+enable_vpc_flow_logs = true
+enable_network_firewall_logging = true
+enable_waf_logging = true
+```
+
+This avoids dynamic `count` expressions depending on values known only after apply.
+
+Security group resource names were also updated to avoid starting with `sg-`, because AWS reserves that prefix for security group IDs.

@@ -85,6 +85,9 @@ enable_aws_config                    = true
 enable_session_manager_preferences   = true
 enable_vpc_endpoints                 = true
 enable_restrictive_endpoint_policies = true
+enable_vpc_flow_logs                 = true
+enable_network_firewall_logging      = true
+enable_waf_logging                   = true
 
 allowed_egress_fqdns = [
   ".amazonaws.com",
@@ -126,28 +129,6 @@ POLICY
   }
 }
 
-# Baseline AWS Config Rules (for gradual compliance enablement)
-# These are example AWS managed rules in audit (non-enforcing) mode. Expand as needed.
-aws_config_baseline = {
-  "restricted-ssh" = {
-    description      = "Checks whether security groups allow unrestricted SSH access."
-    rule_identifier  = "INCOMING_SSH_DISABLED"
-    input_parameters = {}
-    compliance_mode  = "Audit"
-  }
-  "s3-bucket-public-read-prohibited" = {
-    description      = "Checks that S3 buckets do not allow public read access."
-    rule_identifier  = "S3_BUCKET_PUBLIC_READ_PROHIBITED"
-    input_parameters = {}
-    compliance_mode  = "Audit"
-  }
-  "rds-storage-encrypted" = {
-    description      = "Checks whether storage encryption is enabled for your RDS DB instances."
-    rule_identifier  = "RDS_STORAGE_ENCRYPTED"
-    input_parameters = {}
-    compliance_mode  = "Audit"
-  }
-}
 
 db_admin_secret_name = "dpn/dev/postgres/admin"
 

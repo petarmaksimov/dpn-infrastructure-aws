@@ -69,3 +69,10 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+
+variable "enable_waf_logging" {
+  description = "Enable WAF logging configuration. Uses explicit boolean to avoid unknown count during planning."
+  type        = bool
+  default     = true
+}

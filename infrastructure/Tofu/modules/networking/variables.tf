@@ -76,3 +76,16 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+
+variable "enable_vpc_flow_logs" {
+  description = "Enable VPC flow logging resources. Uses explicit boolean to avoid unknown count during planning."
+  type        = bool
+  default     = true
+}
+
+variable "enable_network_firewall_logging" {
+  description = "Enable AWS Network Firewall logging configuration. Uses explicit boolean to avoid unknown count during planning."
+  type        = bool
+  default     = true
+}

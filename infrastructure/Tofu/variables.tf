@@ -354,6 +354,25 @@ variable "enable_restrictive_endpoint_policies" {
   default     = true
 }
 
+variable "enable_vpc_flow_logs" {
+  description = "Enable VPC flow logging resources"
+  type        = bool
+  default     = true
+}
+
+variable "enable_network_firewall_logging" {
+  description = "Enable AWS Network Firewall logging configuration"
+  type        = bool
+  default     = true
+}
+
+variable "enable_waf_logging" {
+  description = "Enable WAF logging configuration"
+  type        = bool
+  default     = true
+}
+
+
 variable "enable_guardduty" {
   description = "Enable Amazon GuardDuty detector"
   type        = bool
