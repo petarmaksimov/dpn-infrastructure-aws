@@ -34,6 +34,8 @@ provider "aws" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 # ==============================================================================
 # KMS Key for S3 Encryption
 # ==============================================================================
@@ -280,8 +282,10 @@ resource "aws_cloudtrail" "tfstate" {
     }
 
     data_resource {
-      type   = "AWS::DynamoDB::Table"
-      values = ["arn:aws:dynamodb:${var.aws_region}:*:table/${var.tfstate_dynamodb_table}"]
+      type = "AWS::DynamoDB::Table"
+      values = [
+        "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.tfstate_dynamodb_table}"
+      ]
     }
   }
 }
