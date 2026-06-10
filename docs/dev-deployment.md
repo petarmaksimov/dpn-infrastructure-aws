@@ -120,3 +120,21 @@ No workload access granted yet
 ```
 
 Workload access should be added later through IRSA once application requirements are known.
+
+## Bootstrap fixes
+
+The bootstrap configuration uses static provider default tags.
+
+Do not use dynamic values such as:
+
+```text
+CreatedAt = timestamp()
+```
+
+in provider `default_tags`, because dynamic tag values can cause AWS provider inconsistent-final-plan errors during apply.
+
+The DEV backend state key is:
+
+```text
+dev/terraform.tfstate
+```

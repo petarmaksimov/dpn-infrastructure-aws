@@ -298,7 +298,7 @@ Output:
 terraform {
   backend "s3" {
     bucket         = "dpn-tfstate-part-001"
-    key            = "part/terraform.tfstate"
+    key            = "dev/terraform.tfstate"
     region         = "eu-west-2"
     dynamodb_table = "dpn-tfstate-lock"
     encrypt        = true

@@ -29,8 +29,7 @@ provider "aws" {
       Environment = var.environment
       Project     = var.project_name
       ManagedBy   = "OpenTofu"
-      CreatedAt   = timestamp()
-      Bootstrap   = true
+      Bootstrap   = "true"
     }
   }
 }

@@ -48,7 +48,7 @@ output "backend_config" {
   description = "Backend configuration block to add to main infrastructure"
   value = {
     bucket         = aws_s3_bucket.tfstate.id
-    key            = "part/terraform.tfstate"
+    key            = "dev/terraform.tfstate"
     region         = aws_s3_bucket.tfstate.region
     dynamodb_table = aws_dynamodb_table.tfstate_lock.name
     encrypt        = true
@@ -62,7 +62,7 @@ output "backend_config_hcl" {
     terraform {
       backend "s3" {
         bucket         = "${aws_s3_bucket.tfstate.id}"
-        key            = "part/terraform.tfstate"
+        key            = "dev/terraform.tfstate"
         region         = "${aws_s3_bucket.tfstate.region}"
         dynamodb_table = "${aws_dynamodb_table.tfstate_lock.name}"
         encrypt        = true
