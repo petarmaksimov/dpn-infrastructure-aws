@@ -108,16 +108,21 @@ irsa_service_accounts = {
   external-secrets = {
     namespace       = "external-secrets"
     service_account = "external-secrets-sa"
-    policy_json = jsonencode({
-      Version = "2012-10-17"
-      Statement = [
-        {
-          Effect   = "Allow"
-          Action   = ["secretsmanager:GetSecretValue"]
-          Resource = "arn:aws:secretsmanager:*:*:secret:dpn/dev/*"
-        }
-      ]
-    })
+
+    policy_json = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:dpn/dev/*"
+    }
+  ]
+}
+POLICY
   }
 }
 
@@ -143,6 +148,7 @@ aws_config_baseline = {
     compliance_mode  = "Audit"
   }
 }
+
 db_admin_secret_name = "dpn/dev/postgres/admin"
 
 data_bucket_name                               = "dpn-dev-627657103820-eu-west-2-data"
