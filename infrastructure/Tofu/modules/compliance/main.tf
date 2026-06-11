@@ -8,7 +8,7 @@ locals {
 }
 
 resource "aws_ssm_document" "session_manager_preferences" {
-  count = var.enable_session_manager_preferences && var.ssm_sessions_log_group_name != null && var.ssm_logs_bucket_name != null ? 1 : 0
+  count = var.enable_session_manager_preferences ? 1 : 0
 
   name            = "ssm-session-preferences-${local.name_prefix}"
   document_type   = "Session"

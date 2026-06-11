@@ -152,3 +152,15 @@ enable_waf_logging = true
 This avoids dynamic `count` expressions depending on values known only after apply.
 
 Security group resource names were also updated to avoid starting with `sg-`, because AWS reserves that prefix for security group IDs.
+
+## Import/planning fixes
+
+The main stack avoids dynamic `count` or `for_each` expressions that depend on values unknown until apply.
+
+Current first-deployment behavior while DNS/ACM is deferred:
+
+```text
+route53_zone_id = "REPLACE_WITH_DEV_ROUTE53_ZONE_ID"
+```
+
+prevents Route53 validation records from being created until real DNS information is available.
