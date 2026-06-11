@@ -11,7 +11,6 @@ locals {
 resource "aws_cloudwatch_log_group" "vpc_flow" {
   name              = "/aws/vpc/flow/${local.name_prefix}"
   retention_in_days = var.log_retention_in_days
-  kms_key_id        = var.kms_key_arn
 
   tags = var.tags
 }
@@ -19,7 +18,6 @@ resource "aws_cloudwatch_log_group" "vpc_flow" {
 resource "aws_cloudwatch_log_group" "firewall_flow" {
   name              = "/aws/network-firewall/flow/${local.name_prefix}"
   retention_in_days = var.log_retention_in_days
-  kms_key_id        = var.kms_key_arn
 
   tags = var.tags
 }
@@ -27,7 +25,6 @@ resource "aws_cloudwatch_log_group" "firewall_flow" {
 resource "aws_cloudwatch_log_group" "firewall_alert" {
   name              = "/aws/network-firewall/alert/${local.name_prefix}"
   retention_in_days = var.log_retention_in_days
-  kms_key_id        = var.kms_key_arn
 
   tags = var.tags
 }
@@ -35,7 +32,6 @@ resource "aws_cloudwatch_log_group" "firewall_alert" {
 resource "aws_cloudwatch_log_group" "eks_control_plane" {
   name              = "/aws/eks/control-plane/${local.name_prefix}"
   retention_in_days = var.log_retention_in_days
-  kms_key_id        = var.kms_key_arn
 
   tags = var.tags
 }
@@ -43,7 +39,6 @@ resource "aws_cloudwatch_log_group" "eks_control_plane" {
 resource "aws_cloudwatch_log_group" "ssm_sessions" {
   name              = "/aws/ssm/sessions/${local.name_prefix}"
   retention_in_days = var.log_retention_in_days
-  kms_key_id        = var.kms_key_arn
 
   tags = var.tags
 }
@@ -51,7 +46,6 @@ resource "aws_cloudwatch_log_group" "ssm_sessions" {
 resource "aws_cloudwatch_log_group" "waf" {
   name              = "aws-waf-logs-${local.name_prefix}"
   retention_in_days = var.log_retention_in_days
-  kms_key_id        = var.kms_key_arn
 
   tags = var.tags
 }
